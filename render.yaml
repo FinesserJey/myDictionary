@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: mydictionary
+    runtime: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: LANGBLY_API_KEY
+        sync: false
+      - key: PROXY_ALLOWED_ORIGIN
+        value: '*'

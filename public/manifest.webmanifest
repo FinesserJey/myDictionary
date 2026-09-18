@@ -1,0 +1,19 @@
+{
+  "name": "Language Lens Dictionary",
+  "short_name": "Language Lens",
+  "description": "A personal multilingual dictionary and flashcard study tool.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#eff4ff",
+  "theme_color": "#1d2f52",
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
