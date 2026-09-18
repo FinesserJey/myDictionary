@@ -122,7 +122,8 @@ const getStoredDictionary = () => {
 
 function App() {
   const fileInputRef = useRef(null)
-  const languageDropdownRef = useRef(null)
+  const libraryMenuRef = useRef(null)
+  const settingsRef = useRef(null)
   const touchStartYRef = useRef(null)
   const [languages, setLanguages] = useState(getStoredDictionary)
   const [selectedLanguage, setSelectedLanguage] = useState('English')
@@ -200,7 +201,7 @@ function App() {
     }
 
     const handleOutsideClick = (event) => {
-      if (!languageDropdownRef.current?.contains(event.target)) {
+      if (!libraryMenuRef.current?.contains(event.target)) {
         setLanguageMenuOpen(false)
       }
     }
@@ -208,6 +209,21 @@ function App() {
     document.addEventListener('pointerdown', handleOutsideClick)
     return () => document.removeEventListener('pointerdown', handleOutsideClick)
   }, [languageMenuOpen])
+
+  useEffect(() => {
+    if (!settingsOpen) {
+      return undefined
+    }
+
+    const handleOutsideClick = (event) => {
+      if (!settingsRef.current?.contains(event.target)) {
+        setSettingsOpen(false)
+      }
+    }
+
+    document.addEventListener('pointerdown', handleOutsideClick)
+    return () => document.removeEventListener('pointerdown', handleOutsideClick)
+  }, [settingsOpen])
 
   const availableLanguages = Object.keys(languages)
 
@@ -420,6 +436,7 @@ function App() {
     }
 
     setSelectedLanguage(nextValue)
+    setLanguageMenuOpen(false)
   }
 
   const handleLanguageDrop = (targetLanguage) => {
@@ -663,48 +680,6 @@ function App() {
             />
           </label>
 
-          <div className="language-field">
-            <span>Language</span>
-            <div className="language-dropdown" ref={languageDropdownRef}>
-              <button
-                type="button"
-                className="language-dropdown-trigger"
-                aria-expanded={languageMenuOpen}
-                onClick={() => setLanguageMenuOpen((current) => !current)}
-              >
-                <span>{selectedLanguage}</span>
-                <span aria-hidden="true">{languageMenuOpen ? '\u25b2' : '\u25bc'}</span>
-              </button>
-              {languageMenuOpen && (
-                <div className="language-order-list" role="listbox" aria-label="Reorder languages">
-                  {availableLanguages.map((language) => (
-                    <button
-                      key={language}
-                      type="button"
-                      className={`language-order-item ${language === selectedLanguage ? 'is-selected' : ''}`}
-                      draggable
-                      onClick={() => handleLanguageSelect(language)}
-                      onDragStart={() => setDraggedLanguage(language)}
-                      onDragOver={(event) => event.preventDefault()}
-                      onDrop={() => handleLanguageDrop(language)}
-                      onDragEnd={() => setDraggedLanguage(null)}
-                    >
-                      <span aria-hidden="true">&#8942;&#8942;</span>
-                      {language}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    className="language-order-item add-language-item"
-                    onClick={() => handleLanguageSelect('__add_new__')}
-                  >
-                    + Add new language
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-
           <button
             type="button"
             className="theme-toggle desktop-theme-toggle"
@@ -713,7 +688,7 @@ function App() {
             {darkMode ? 'Light mode' : 'Dark mode'}
           </button>
         </div>
-        <div className="mobile-settings">
+        <div className="mobile-settings" ref={settingsRef}>
           <button
             type="button"
             className="settings-button"
@@ -735,18 +710,7 @@ function App() {
         </div>
       </header>
 
-      <nav className="quick-actions" aria-label="Quick actions">
-        <button type="button" className={studyMode ? 'is-active' : ''} onClick={() => { setStudyMode(true); setActiveTab('study') }}>
-          Flashcards
-        </button>
-        <button type="button" onClick={handleExport}>
-          Export JSON
-        </button>
-        <button type="button" onClick={() => fileInputRef.current?.click()}>
-          Import JSON
-        </button>
-        <input ref={fileInputRef} type="file" accept="application/json" hidden onChange={handleImport} />
-      </nav>
+      <input ref={fileInputRef} type="file" accept="application/json" hidden onChange={handleImport} />
 
       <div className={`pull-indicator ${isRefreshing ? 'refreshing' : ''}`} style={{ height: `${Math.max(pullDistance, 0)}px` }}>
         <span>{isRefreshing ? 'Refreshing...' : pullDistance > 70 ? 'Release to refresh' : 'Pull to refresh'}</span>
@@ -870,7 +834,7 @@ function App() {
                   value={formData.wordType}
                   onChange={handleFormChange}
                 >
-                  <option value="">Select a word type</option>
+                  <option value="">Select a Word Type</option>
                   {wordTypeOptions.map((type) => (
                     <option key={type} value={formatWordType(type)}>
                       {formatWordType(type)}
@@ -905,11 +869,9 @@ function App() {
                 <button className="submit-button" type="submit">
                   {editingEntryId !== null ? 'Update entry' : 'Save entry'}
                 </button>
-                {editingEntryId !== null && (
-                  <button type="button" className="cancel-button" onClick={resetForm}>
-                    Cancel
-                  </button>
-                )}
+                <button type="button" className="cancel-button" onClick={() => { setQuickAddOpen(false); resetForm() }}>
+                  Cancel
+                </button>
               </div>
             </form>
           </aside>
@@ -917,13 +879,46 @@ function App() {
 
         <section className="panel entries-panel">
           <div className="section-head">
-            <h2>{selectedLanguage} Library</h2>
-            <span>{filteredEntries.length} results</span>
+            <div className="library-tab" ref={libraryMenuRef}>
+              <button
+                type="button"
+                className="library-tab-trigger"
+                aria-expanded={languageMenuOpen}
+                onClick={() => setLanguageMenuOpen((current) => !current)}
+              >
+                <h2>{selectedLanguage} Library</h2>
+                <span aria-hidden="true">{languageMenuOpen ? '\u25b2' : '\u25bc'}</span>
+              </button>
+              {languageMenuOpen && (
+                <div className="library-language-menu language-order-list" role="listbox" aria-label="Reorder languages">
+                  {availableLanguages.map((language) => (
+                    <button
+                      key={language}
+                      type="button"
+                      className={`language-order-item ${language === selectedLanguage ? 'is-selected' : ''}`}
+                      draggable
+                      onClick={() => handleLanguageSelect(language)}
+                      onDragStart={() => setDraggedLanguage(language)}
+                      onDragOver={(event) => event.preventDefault()}
+                      onDrop={() => handleLanguageDrop(language)}
+                      onDragEnd={() => setDraggedLanguage(null)}
+                    >
+                      <span aria-hidden="true">&#8942;&#8942;</span>
+                      {language}
+                    </button>
+                  ))}
+                  <button type="button" className="language-order-item add-language-item" onClick={() => handleLanguageSelect('__add_new__')}>
+                    + Add new language
+                  </button>
+                </div>
+              )}
+            </div>
+            <span>{filteredEntries.length} words</span>
           </div>
 
           {filteredEntries.length === 0 ? (
             <div className="empty-state">
-              <p>No matching terms in this language library yet.</p>
+              <p>No terms in this language library yet.</p>
             </div>
           ) : (
             <div className="entries-list">
