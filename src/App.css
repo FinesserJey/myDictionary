@@ -334,6 +334,23 @@ button {
   flex: 1;
 }
 
+.voice-recording-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.voice-recording-controls audio {
+  width: min(100%, 18rem);
+  height: 2.25rem;
+}
+
+.error-text {
+  color: var(--danger, #b42318);
+}
+
 .inline-action-button,
 .speak-button {
   padding: 0.55rem 0.7rem;

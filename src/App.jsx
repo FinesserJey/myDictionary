@@ -90,6 +90,7 @@ const emptyForm = {
   translation: '',
   definition: '',
   pronunciation: '',
+  voiceRecording: '',
   automaticPronunciation: '',
   romanization: '',
   wordType: '',
@@ -131,6 +132,10 @@ function App() {
   const [suggestions, setSuggestions] = useState([])
   const [isLookingUpWord, setIsLookingUpWord] = useState(false)
   const [isTranslating, setIsTranslating] = useState(false)
+  const [isRecording, setIsRecording] = useState(false)
+  const [recordingError, setRecordingError] = useState('')
+  const mediaRecorderRef = useRef(null)
+  const recordingStreamRef = useRef(null)
   const [draggedLanguage, setDraggedLanguage] = useState(null)
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false)
   const [editingEntryId, setEditingEntryId] = useState(null)
@@ -237,6 +242,11 @@ function App() {
   const currentStudyCard = studyEntries[studyIndex % Math.max(studyEntries.length, 1)] || null
 
   const resetForm = () => {
+    recordingStreamRef.current?.getTracks().forEach((track) => track.stop())
+    mediaRecorderRef.current = null
+    recordingStreamRef.current = null
+    setIsRecording(false)
+    setRecordingError('')
     setFormData(emptyForm)
     setEditingEntryId(null)
   }
@@ -309,6 +319,47 @@ function App() {
     const utterance = new SpeechSynthesisUtterance(word)
     utterance.lang = languageCodes[language] || 'en'
     window.speechSynthesis.speak(utterance)
+  }
+
+  const toggleVoiceRecording = async () => {
+    if (isRecording) {
+      mediaRecorderRef.current?.stop()
+      return
+    }
+
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      setRecordingError('Voice recording is not supported in this browser.')
+      return
+    }
+
+    try {
+      setRecordingError('')
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const recorder = new MediaRecorder(stream)
+      const chunks = []
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) chunks.push(event.data)
+      }
+      recorder.onstop = () => {
+        const reader = new FileReader()
+        reader.onloadend = () => {
+          setFormData((current) => ({ ...current, voiceRecording: reader.result }))
+        }
+        reader.readAsDataURL(new Blob(chunks, { type: recorder.mimeType || 'audio/webm' }))
+        stream.getTracks().forEach((track) => track.stop())
+        mediaRecorderRef.current = null
+        recordingStreamRef.current = null
+        setIsRecording(false)
+      }
+
+      mediaRecorderRef.current = recorder
+      recordingStreamRef.current = stream
+      recorder.start()
+      setIsRecording(true)
+    } catch (error) {
+      setRecordingError(error.name === 'NotAllowedError' ? 'Microphone access was denied.' : 'Unable to start recording.')
+    }
   }
 
   useEffect(() => {
@@ -426,6 +477,7 @@ function App() {
       translation: formData.translation.trim(),
       definition: formData.definition.trim(),
       pronunciation: formData.pronunciation.trim(),
+      voiceRecording: formData.voiceRecording,
       automaticPronunciation: formData.automaticPronunciation.trim(),
       romanization: formData.romanization.trim(),
       example: formData.example.trim(),
@@ -433,7 +485,7 @@ function App() {
       favorite: Boolean(formData.favorite),
     }
 
-    if (!normalizedEntry.word || !normalizedEntry.translation || !normalizedEntry.definition || !normalizedEntry.example) {
+    if (!normalizedEntry.word) {
       return
     }
 
@@ -465,6 +517,7 @@ function App() {
       translation: entry.translation,
       definition: entry.definition,
       pronunciation: entry.pronunciation,
+      voiceRecording: entry.voiceRecording || '',
       automaticPronunciation: entry.automaticPronunciation || '',
       romanization: entry.romanization || '',
       wordType: entry.wordType,
@@ -534,6 +587,7 @@ function App() {
                     translation: typeof entry.translation === 'string' ? entry.translation : '',
                     definition: typeof entry.definition === 'string' ? entry.definition : '',
                     pronunciation: typeof entry.pronunciation === 'string' ? entry.pronunciation : '',
+                    voiceRecording: typeof entry.voiceRecording === 'string' ? entry.voiceRecording : '',
                     automaticPronunciation: typeof entry.automaticPronunciation === 'string' ? entry.automaticPronunciation : '',
                     romanization: typeof entry.romanization === 'string' ? entry.romanization : '',
                     example: typeof entry.example === 'string' ? entry.example : '',
@@ -759,6 +813,15 @@ function App() {
                   onChange={handleFormChange}
                   placeholder=""
                 />
+                <div className="voice-recording-controls">
+                  <button type="button" className="inline-action-button" onClick={toggleVoiceRecording}>
+                    {isRecording ? 'Stop recording' : 'Record voice'}
+                  </button>
+                  {formData.voiceRecording && (
+                    <audio controls src={formData.voiceRecording} aria-label="Your recorded pronunciation" />
+                  )}
+                </div>
+                {recordingError && <span className="form-help error-text">{recordingError}</span>}
               </label>
 
               <label>
@@ -930,6 +993,9 @@ function App() {
                         {entry.automaticPronunciation && <span>{entry.automaticPronunciation} </span>}
                         {entry.pronunciation && <span>({entry.pronunciation})</span>}
                         {!entry.automaticPronunciation && !entry.pronunciation && 'Not provided'}
+                        {entry.voiceRecording && (
+                          <audio controls src={entry.voiceRecording} aria-label={`Recorded pronunciation for ${entry.word}`} />
+                        )}
                         <button
                           type="button"
                           className="speak-button"
