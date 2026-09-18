@@ -146,6 +146,7 @@ function App() {
   const [editingEntryId, setEditingEntryId] = useState(null)
   const [studyMode, setStudyMode] = useState(false)
   const [studyIndex, setStudyIndex] = useState(0)
+  const [isFlashcardFlipped, setIsFlashcardFlipped] = useState(false)
   const [revealAnswer, setRevealAnswer] = useState(false)
   const [darkMode, setDarkMode] = useState(() => {
     if (typeof window === 'undefined') {
@@ -194,6 +195,7 @@ function App() {
     setSelectedEntryIds([])
     setSelectionMode(false)
     setOpenEntryMenuId(null)
+    setIsFlashcardFlipped(false)
   }, [selectedLanguage])
 
   useEffect(() => {
@@ -1147,20 +1149,30 @@ function App() {
             </div>
 
             <div className="flashcard-navigation">
-              <button type="button" className="flashcard-arrow" onClick={() => setStudyIndex((current) => (current - 1 + studyEntries.length) % studyEntries.length)} aria-label="Previous flashcard">&#8592;</button>
+              <button type="button" className="flashcard-arrow" onClick={() => { setStudyIndex((current) => (current - 1 + studyEntries.length) % studyEntries.length); setIsFlashcardFlipped(false) }} aria-label="Previous flashcard">&#8592;</button>
               <span>{studyIndex + 1}/{studyEntries.length}</span>
-              <button type="button" className="flashcard-arrow" onClick={() => setStudyIndex((current) => (current + 1) % studyEntries.length)} aria-label="Next flashcard">&#8594;</button>
+              <button type="button" className="flashcard-arrow" onClick={() => { setStudyIndex((current) => (current + 1) % studyEntries.length); setIsFlashcardFlipped(false) }} aria-label="Next flashcard">&#8594;</button>
             </div>
 
             <h3>{currentStudyCard.word}</h3>
             <p className="study-type">{currentStudyCard.wordType}</p>
 
-            <p className="translation">{currentStudyCard.translation || 'Not provided'}</p>
-            <dl>
-              <div><dt>Definition</dt><dd>{currentStudyCard.definition || 'Not provided'}</dd></div>
-              <div><dt>Pronunciation</dt><dd>{currentStudyCard.automaticPronunciation || currentStudyCard.pronunciation || 'Not provided'}</dd></div>
-              <div><dt>Example</dt><dd>{currentStudyCard.example || 'Not provided'}</dd></div>
-            </dl>
+            {isFlashcardFlipped && (
+              <div className="flashcard-answer">
+                <p className="translation">{currentStudyCard.translation || 'Not provided'}</p>
+                <dl>
+                  <div><dt>Definition</dt><dd>{currentStudyCard.definition || 'Not provided'}</dd></div>
+                  <div><dt>Pronunciation</dt><dd>{currentStudyCard.automaticPronunciation || currentStudyCard.pronunciation || 'Not provided'}</dd></div>
+                  <div><dt>Example</dt><dd>{currentStudyCard.example || 'Not provided'}</dd></div>
+                </dl>
+              </div>
+            )}
+
+            <div className="study-actions">
+              <button type="button" onClick={() => setIsFlashcardFlipped((current) => !current)}>
+                {isFlashcardFlipped ? 'Flip back' : 'Flip'}
+              </button>
+            </div>
           </div>
         </div>
       )}
