@@ -239,6 +239,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  touch-action: none;
 }
 
 .language-order-select {
@@ -257,24 +258,6 @@
 .language-order-select:focus-visible {
   background: var(--secondary-button-bg);
   color: var(--heading-color);
-}
-
-.language-reorder-controls {
-  display: flex;
-  gap: 2px;
-}
-
-.language-reorder-controls button {
-  width: 30px;
-  height: 30px;
-  padding: 0;
-  background: var(--secondary-button-bg);
-  color: var(--secondary-button-text);
-}
-
-.language-reorder-controls button:disabled {
-  cursor: not-allowed;
-  opacity: 0.35;
 }
 
 .language-order-item {

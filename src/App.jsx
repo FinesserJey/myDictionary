@@ -139,6 +139,9 @@ function App() {
   const mediaRecorderRef = useRef(null)
   const recordingStreamRef = useRef(null)
   const [draggedLanguage, setDraggedLanguage] = useState(null)
+  const draggedLanguageRef = useRef(null)
+  const pointerStartRef = useRef(null)
+  const dragMovedRef = useRef(false)
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false)
   const [editingEntryId, setEditingEntryId] = useState(null)
   const [studyMode, setStudyMode] = useState(false)
@@ -450,14 +453,14 @@ function App() {
     setLanguageMenuOpen(false)
   }
 
-  const handleLanguageDrop = (targetLanguage) => {
-    if (!draggedLanguage || draggedLanguage === targetLanguage) {
+  const handleLanguageDrop = (targetLanguage, sourceLanguage = draggedLanguageRef.current) => {
+    if (!sourceLanguage || sourceLanguage === targetLanguage) {
       return
     }
 
-    const reorderedLanguages = availableLanguages.filter((language) => language !== draggedLanguage)
+    const reorderedLanguages = availableLanguages.filter((language) => language !== sourceLanguage)
     const targetIndex = reorderedLanguages.indexOf(targetLanguage)
-    reorderedLanguages.splice(targetIndex, 0, draggedLanguage)
+    reorderedLanguages.splice(targetIndex, 0, sourceLanguage)
 
     setLanguages((current) =>
       Object.fromEntries(reorderedLanguages.map((language) => [language, current[language]])),
@@ -465,17 +468,37 @@ function App() {
     setDraggedLanguage(null)
   }
 
-  const moveLanguage = (language, direction) => {
-    const currentIndex = availableLanguages.indexOf(language)
-    const targetIndex = currentIndex + direction
-    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= availableLanguages.length) return
+  const handleLanguagePointerDown = (event, language) => {
+    pointerStartRef.current = { x: event.clientX, y: event.clientY }
+    dragMovedRef.current = false
+    draggedLanguageRef.current = language
+    setDraggedLanguage(language)
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+  }
 
-    const reorderedLanguages = [...availableLanguages]
-    const [movedLanguage] = reorderedLanguages.splice(currentIndex, 1)
-    reorderedLanguages.splice(targetIndex, 0, movedLanguage)
-    setLanguages((current) => Object.fromEntries(
-      reorderedLanguages.map((item) => [item, current[item]]),
-    ))
+  const handleLanguagePointerMove = (event) => {
+    if (!pointerStartRef.current || !draggedLanguageRef.current) return
+
+    const distance = Math.hypot(
+      event.clientX - pointerStartRef.current.x,
+      event.clientY - pointerStartRef.current.y,
+    )
+    if (distance > 6) {
+      dragMovedRef.current = true
+    }
+  }
+
+  const handleLanguagePointerEnter = (language) => {
+    if (dragMovedRef.current && draggedLanguageRef.current) {
+      handleLanguageDrop(language, draggedLanguageRef.current)
+    }
+  }
+
+  const handleLanguagePointerUp = (event) => {
+    event.currentTarget.releasePointerCapture?.(event.pointerId)
+    pointerStartRef.current = null
+    draggedLanguageRef.current = null
+    setDraggedLanguage(null)
   }
 
   const handleFormChange = (event) => {
@@ -943,20 +966,25 @@ function App() {
                     <div
                       key={language}
                       className={`language-order-item ${language === selectedLanguage ? 'is-selected' : ''}`}
-                      draggable
-                      onDragStart={() => setDraggedLanguage(language)}
-                      onDragOver={(event) => event.preventDefault()}
-                      onDrop={() => handleLanguageDrop(language)}
-                      onDragEnd={() => setDraggedLanguage(null)}
+                      onPointerDown={(event) => handleLanguagePointerDown(event, language)}
+                      onPointerMove={handleLanguagePointerMove}
+                      onPointerEnter={() => handleLanguagePointerEnter(language)}
+                      onPointerUp={handleLanguagePointerUp}
                     >
-                      <button type="button" className="language-order-select" onClick={() => handleLanguageSelect(language)}>
+                      <button
+                        type="button"
+                        className="language-order-select"
+                        onClick={() => {
+                          if (dragMovedRef.current) {
+                            dragMovedRef.current = false
+                            return
+                          }
+                          handleLanguageSelect(language)
+                        }}
+                      >
                         <span aria-hidden="true">&#8942;&#8942;</span>
                         {language}
                       </button>
-                      <span className="language-reorder-controls">
-                        <button type="button" onClick={() => moveLanguage(language, -1)} disabled={availableLanguages.indexOf(language) === 0} aria-label={`Move ${language} up`}>&#8593;</button>
-                        <button type="button" onClick={() => moveLanguage(language, 1)} disabled={availableLanguages.indexOf(language) === availableLanguages.length - 1} aria-label={`Move ${language} down`}>&#8595;</button>
-                      </span>
                     </div>
                   ))}
                   <button type="button" className="language-order-item add-language-item" onClick={() => handleLanguageSelect('__add_new__')}>
@@ -973,7 +1001,7 @@ function App() {
                 onChange={(event) => setSelectedWordType(event.target.value)}
                 aria-label="Filter by word type"
               >
-                <option value="">All word types</option>
+                <option value="">Filter</option>
                 {wordTypeOptions.map((type) => (
                   <option key={type} value={formatWordType(type)}>{formatWordType(type)}</option>
                 ))}
