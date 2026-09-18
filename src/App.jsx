@@ -471,6 +471,8 @@ function App() {
   }
 
   const handleLanguagePointerDown = (event, language) => {
+    if (event.pointerType === 'mouse') return
+
     pointerStartRef.current = { x: event.clientX, y: event.clientY }
     dragMovedRef.current = false
     draggedLanguageRef.current = language
@@ -479,6 +481,8 @@ function App() {
   }
 
   const handleLanguagePointerMove = (event) => {
+    if (event.pointerType === 'mouse') return
+
     if (!pointerStartRef.current || !draggedLanguageRef.current) return
 
     const distance = Math.hypot(
@@ -505,8 +509,27 @@ function App() {
   }
 
   const handleLanguagePointerUp = (event) => {
+    if (event.pointerType === 'mouse') return
+
     event.currentTarget.releasePointerCapture?.(event.pointerId)
     pointerStartRef.current = null
+    draggedLanguageRef.current = null
+    setDraggedLanguage(null)
+  }
+
+  const handleLanguageDragStart = (event, language) => {
+    draggedLanguageRef.current = language
+    setDraggedLanguage(language)
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', language)
+  }
+
+  const handleLanguageDragOver = (event) => {
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'move'
+  }
+
+  const handleLanguageDragEnd = () => {
     draggedLanguageRef.current = null
     setDraggedLanguage(null)
   }
@@ -977,6 +1000,14 @@ function App() {
                       key={language}
                       data-language-row={language}
                       className={`language-order-item ${language === selectedLanguage ? 'is-selected' : ''}`}
+                      draggable
+                      onDragStart={(event) => handleLanguageDragStart(event, language)}
+                      onDragOver={handleLanguageDragOver}
+                      onDrop={(event) => {
+                        event.preventDefault()
+                        handleLanguageDrop(language, draggedLanguageRef.current || event.dataTransfer.getData('text/plain'))
+                      }}
+                      onDragEnd={handleLanguageDragEnd}
                       onPointerDown={(event) => handleLanguagePointerDown(event, language)}
                       onPointerMove={handleLanguagePointerMove}
                       onPointerEnter={() => handleLanguagePointerEnter(language)}
