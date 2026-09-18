@@ -6,6 +6,7 @@
 }
 
 .topbar {
+  position: relative;
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
@@ -38,6 +39,46 @@
   gap: 16px;
   flex-wrap: wrap;
   align-items: end;
+}
+
+.mobile-settings {
+  display: none;
+  position: relative;
+}
+
+.settings-button {
+  width: 42px;
+  height: 42px;
+  background: var(--secondary-button-bg);
+  color: var(--heading-color);
+  border: 1px solid var(--secondary-button-border);
+  font-size: 1.35rem;
+}
+
+.settings-menu {
+  position: absolute;
+  top: 50px;
+  right: 0;
+  z-index: 60;
+  display: grid;
+  min-width: 150px;
+  padding: 6px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  box-shadow: 0 14px 30px var(--shadow);
+}
+
+.settings-menu button {
+  padding: 0.7rem 0.8rem;
+  background: transparent;
+  color: var(--heading-color);
+  text-align: left;
+}
+
+.settings-menu button:hover,
+.settings-menu button:focus-visible {
+  background: var(--secondary-button-bg);
 }
 
 .quick-actions {
@@ -564,6 +605,52 @@ button {
   padding: 0.75rem 1rem;
 }
 
+.flashcard-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.48);
+  backdrop-filter: blur(5px);
+}
+
+.flashcard-overlay .study-card {
+  width: min(100%, 620px);
+  max-height: min(760px, calc(100vh - 48px));
+  overflow-y: auto;
+  margin: 0;
+}
+
+.close-button {
+  width: 36px;
+  height: 36px;
+  background: var(--secondary-button-bg);
+  color: var(--heading-color);
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.flashcard-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 8px 0 20px;
+  color: var(--muted-text);
+  font-weight: 700;
+}
+
+.flashcard-arrow {
+  width: 42px;
+  height: 42px;
+  background: var(--secondary-button-bg);
+  color: var(--heading-color);
+  border: 1px solid var(--secondary-button-border);
+  font-size: 1.4rem;
+}
+
 .empty-state {
   border: 1px dashed var(--empty-state-border);
   border-radius: 16px;
@@ -642,9 +729,24 @@ button {
     align-items: stretch;
   }
 
+  .topbar {
+    padding-right: 52px;
+  }
+
+  .mobile-settings {
+    display: block;
+    position: absolute;
+    top: 0;
+    right: 0;
+  }
+
   .search-field,
   .language-field,
-  .theme-toggle,
+  .desktop-theme-toggle,
+  .quick-actions {
+    display: none;
+  }
+
   .quick-actions button {
     min-width: 0;
     width: 100%;
@@ -661,5 +763,13 @@ button {
     width: min(100% - 22px, 1280px);
     padding-top: 20px;
     padding-bottom: 110px;
+  }
+
+  .flashcard-overlay {
+    padding: 12px;
+  }
+
+  .flashcard-overlay .study-card {
+    max-height: calc(100vh - 24px);
   }
 }

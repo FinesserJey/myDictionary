@@ -158,6 +158,7 @@ function App() {
   const [pullDistance, setPullDistance] = useState(0)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [quickAddOpen, setQuickAddOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(languages))
@@ -609,8 +610,6 @@ function App() {
     }
   }
 
-  const isDesktop = typeof window !== 'undefined' ? window.innerWidth > 900 : true
-
   const handleTouchStart = (event) => {
     if (window.scrollY > 0) {
       return
@@ -708,16 +707,36 @@ function App() {
 
           <button
             type="button"
-            className="theme-toggle"
+            className="theme-toggle desktop-theme-toggle"
             onClick={() => setDarkMode((current) => !current)}
           >
             {darkMode ? 'Light mode' : 'Dark mode'}
           </button>
         </div>
+        <div className="mobile-settings">
+          <button
+            type="button"
+            className="settings-button"
+            aria-label="Open settings"
+            aria-expanded={settingsOpen}
+            onClick={() => setSettingsOpen((current) => !current)}
+          >
+            <span aria-hidden="true">&#9776;</span>
+          </button>
+          {settingsOpen && (
+            <div className="settings-menu">
+              <button type="button" onClick={() => setDarkMode((current) => !current)}>
+                {darkMode ? 'Light mode' : 'Dark mode'}
+              </button>
+              <button type="button" onClick={handleExport}>Export JSON</button>
+              <button type="button" onClick={() => fileInputRef.current?.click()}>Import JSON</button>
+            </div>
+          )}
+        </div>
       </header>
 
       <nav className="quick-actions" aria-label="Quick actions">
-        <button type="button" className={studyMode ? 'is-active' : ''} onClick={() => setStudyMode((current) => !current)}>
+        <button type="button" className={studyMode ? 'is-active' : ''} onClick={() => { setStudyMode(true); setActiveTab('study') }}>
           Flashcards
         </button>
         <button type="button" onClick={handleExport}>
@@ -734,7 +753,7 @@ function App() {
       </div>
 
       <main className="content">
-        {(quickAddOpen || isDesktop) && (
+        {quickAddOpen && (
           <aside className="panel form-panel">
             <div className="section-head">
               <h2>{editingEntryId !== null ? 'Edit word' : 'Add a new word'}</h2>
@@ -806,13 +825,6 @@ function App() {
 
               <label>
                 <span>Your Pronunciation</span>
-                <input
-                  type="text"
-                  name="pronunciation"
-                  value={formData.pronunciation}
-                  onChange={handleFormChange}
-                  placeholder=""
-                />
                 <div className="voice-recording-controls">
                   <button type="button" className="inline-action-button" onClick={toggleVoiceRecording}>
                     {isRecording ? 'Stop recording' : 'Record voice'}
@@ -831,16 +843,15 @@ function App() {
                     type="text"
                     value={formData.automaticPronunciation}
                     readOnly
-                    placeholder="Generated after lookup"
                   />
                   <button
                     type="button"
                     className="inline-action-button"
-                    onClick={() => speakWord(formData.word, selectedLanguage)}
+                    onClick={() => lookupWord(formData.word)}
                     disabled={!formData.word}
-                    aria-label="Play pronunciation"
+                    aria-label="Look up pronunciation"
                   >
-                    Play
+                    Lookup
                   </button>
                 </div>
               </label>
@@ -909,53 +920,6 @@ function App() {
             <h2>{selectedLanguage} Library</h2>
             <span>{filteredEntries.length} results</span>
           </div>
-
-          {studyMode && currentStudyCard && (
-            <div className="study-card">
-              <div className="study-header">
-                <span className="study-badge">Flashcard</span>
-                <span>
-                  {studyIndex + 1}/{studyEntries.length}
-                </span>
-              </div>
-
-              <h3>{currentStudyCard.word}</h3>
-              <p className="study-type">{currentStudyCard.wordType}</p>
-
-              {revealAnswer ? (
-                <>
-                  <p className="translation">{currentStudyCard.translation}</p>
-                  <dl>
-                    <div>
-                      <dt>Definition</dt>
-                      <dd>{currentStudyCard.definition}</dd>
-                    </div>
-                    <div>
-                      <dt>Pronunciation</dt>
-                      <dd>
-                        {currentStudyCard.automaticPronunciation || currentStudyCard.pronunciation || 'Not provided'}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>Example</dt>
-                      <dd>{currentStudyCard.example}</dd>
-                    </div>
-                  </dl>
-                </>
-              ) : (
-                <p className="study-hint">Reveal the meaning and example.</p>
-              )}
-
-              <div className="study-actions">
-                <button type="button" onClick={() => setRevealAnswer((current) => !current)}>
-                  {revealAnswer ? 'Hide answer' : 'Reveal answer'}
-                </button>
-                <button type="button" className="secondary-button" onClick={() => setStudyIndex((current) => (current + 1) % studyEntries.length)}>
-                  Next word
-                </button>
-              </div>
-            </div>
-          )}
 
           {filteredEntries.length === 0 ? (
             <div className="empty-state">
@@ -1048,6 +1012,45 @@ function App() {
       <button type="button" className="floating-add-button" onClick={() => { setQuickAddOpen(true); document.getElementById('entry-word-input')?.focus() }}>
         +
       </button>
+
+      {studyMode && currentStudyCard && (
+        <div className="flashcard-overlay" role="dialog" aria-modal="true" aria-label="Flashcards">
+          <div className="study-card">
+            <div className="study-header">
+              <span className="study-badge">Flashcard</span>
+              <button type="button" className="close-button" onClick={() => setStudyMode(false)} aria-label="Close flashcards">&times;</button>
+            </div>
+
+            <div className="flashcard-navigation">
+              <button type="button" className="flashcard-arrow" onClick={() => { setStudyIndex((current) => (current - 1 + studyEntries.length) % studyEntries.length); setRevealAnswer(false) }} aria-label="Previous flashcard">&#8592;</button>
+              <span>{studyIndex + 1}/{studyEntries.length}</span>
+              <button type="button" className="flashcard-arrow" onClick={() => { setStudyIndex((current) => (current + 1) % studyEntries.length); setRevealAnswer(false) }} aria-label="Next flashcard">&#8594;</button>
+            </div>
+
+            <h3>{currentStudyCard.word}</h3>
+            <p className="study-type">{currentStudyCard.wordType}</p>
+
+            {revealAnswer ? (
+              <>
+                <p className="translation">{currentStudyCard.translation}</p>
+                <dl>
+                  <div><dt>Definition</dt><dd>{currentStudyCard.definition || 'Not provided'}</dd></div>
+                  <div><dt>Pronunciation</dt><dd>{currentStudyCard.automaticPronunciation || currentStudyCard.pronunciation || 'Not provided'}</dd></div>
+                  <div><dt>Example</dt><dd>{currentStudyCard.example || 'Not provided'}</dd></div>
+                </dl>
+              </>
+            ) : (
+              <p className="study-hint">Reveal the meaning and example.</p>
+            )}
+
+            <div className="study-actions">
+              <button type="button" onClick={() => setRevealAnswer((current) => !current)}>
+                {revealAnswer ? 'Hide answer' : 'Reveal answer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
