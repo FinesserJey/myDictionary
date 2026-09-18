@@ -488,6 +488,14 @@ function App() {
     if (distance > 6) {
       dragMovedRef.current = true
     }
+
+    if (dragMovedRef.current) {
+      const row = document.elementFromPoint(event.clientX, event.clientY)?.closest('[data-language-row]')
+      const targetLanguage = row?.getAttribute('data-language-row')
+      if (targetLanguage) {
+        handleLanguageDrop(targetLanguage, draggedLanguageRef.current)
+      }
+    }
   }
 
   const handleLanguagePointerEnter = (language) => {
@@ -967,6 +975,7 @@ function App() {
                   {availableLanguages.map((language) => (
                     <div
                       key={language}
+                      data-language-row={language}
                       className={`language-order-item ${language === selectedLanguage ? 'is-selected' : ''}`}
                       onPointerDown={(event) => handleLanguagePointerDown(event, language)}
                       onPointerMove={handleLanguagePointerMove}
