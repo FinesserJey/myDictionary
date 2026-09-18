@@ -49,8 +49,16 @@
   right: 0;
 }
 
-.desktop-theme-toggle {
-  display: none;
+.theme-icon-button {
+  position: absolute;
+  top: 0;
+  right: 50px;
+  width: 42px;
+  height: 42px;
+  background: var(--secondary-button-bg);
+  color: var(--heading-color);
+  border: 1px solid var(--secondary-button-border);
+  font-size: 1.35rem;
 }
 
 .settings-button {
@@ -230,6 +238,48 @@
 .language-order-item {
   display: flex;
   align-items: center;
+  gap: 6px;
+}
+
+.language-order-select {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0.65rem 0.75rem;
+  background: transparent;
+  color: var(--input-text);
+  text-align: left;
+}
+
+.language-order-item.is-selected .language-order-select,
+.language-order-select:hover,
+.language-order-select:focus-visible {
+  background: var(--secondary-button-bg);
+  color: var(--heading-color);
+}
+
+.language-reorder-controls {
+  display: flex;
+  gap: 2px;
+}
+
+.language-reorder-controls button {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  background: var(--secondary-button-bg);
+  color: var(--secondary-button-text);
+}
+
+.language-reorder-controls button:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+.language-order-item {
+  display: flex;
+  align-items: center;
   gap: 5px;
   width: 100%;
   padding: 0.45rem 0.65rem;
@@ -306,6 +356,17 @@
 
 .library-actions > span {
   margin: 0;
+}
+
+.word-type-filter {
+  min-width: 130px;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--secondary-button-border);
+  border-radius: 10px;
+  background: var(--secondary-button-bg);
+  color: var(--secondary-button-text);
+  font: inherit;
+  font-size: 0.78rem;
 }
 
 .select-entries-button,

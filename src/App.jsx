@@ -128,6 +128,7 @@ function App() {
   const [languages, setLanguages] = useState(getStoredDictionary)
   const [selectedLanguage, setSelectedLanguage] = useState('English')
   const [searchTerm, setSearchTerm] = useState('')
+  const [selectedWordType, setSelectedWordType] = useState('')
   const [formData, setFormData] = useState(emptyForm)
   const [customWordTypes, setCustomWordTypes] = useState([])
   const [suggestions, setSuggestions] = useState([])
@@ -252,18 +253,19 @@ function App() {
   const filteredEntries = useMemo(() => {
     const query = searchTerm.trim().toLowerCase()
     const entries = activeTab === 'favorites' ? currentEntries.filter((entry) => entry.favorite) : currentEntries
+    const groupedEntries = selectedWordType ? entries.filter((entry) => entry.wordType === selectedWordType) : entries
 
     if (!query) {
-      return entries
+      return groupedEntries
     }
 
-    return entries.filter((entry) =>
+    return groupedEntries.filter((entry) =>
       [entry.word, entry.translation, entry.definition, entry.pronunciation, entry.automaticPronunciation, entry.romanization, entry.example]
         .join(' ')
         .toLowerCase()
         .includes(query),
     )
-  }, [activeTab, currentEntries, searchTerm])
+  }, [activeTab, currentEntries, searchTerm, selectedWordType])
 
   const currentStudyCard = studyEntries[studyIndex % Math.max(studyEntries.length, 1)] || null
 
@@ -461,6 +463,19 @@ function App() {
       Object.fromEntries(reorderedLanguages.map((language) => [language, current[language]])),
     )
     setDraggedLanguage(null)
+  }
+
+  const moveLanguage = (language, direction) => {
+    const currentIndex = availableLanguages.indexOf(language)
+    const targetIndex = currentIndex + direction
+    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= availableLanguages.length) return
+
+    const reorderedLanguages = [...availableLanguages]
+    const [movedLanguage] = reorderedLanguages.splice(currentIndex, 1)
+    reorderedLanguages.splice(targetIndex, 0, movedLanguage)
+    setLanguages((current) => Object.fromEntries(
+      reorderedLanguages.map((item) => [item, current[item]]),
+    ))
   }
 
   const handleFormChange = (event) => {
@@ -714,14 +729,16 @@ function App() {
             />
           </label>
 
-          <button
-            type="button"
-            className="theme-toggle desktop-theme-toggle"
-            onClick={() => setDarkMode((current) => !current)}
-          >
-            {darkMode ? 'Light mode' : 'Dark mode'}
-          </button>
         </div>
+        <button
+          type="button"
+          className="theme-icon-button"
+          onClick={() => setDarkMode((current) => !current)}
+          aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+          title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+        >
+          <span aria-hidden="true">{darkMode ? '\u2600' : '\u263e'}</span>
+        </button>
         <div className="mobile-settings" ref={settingsRef}>
           <button
             type="button"
@@ -734,9 +751,6 @@ function App() {
           </button>
           {settingsOpen && (
             <div className="settings-menu">
-              <button type="button" onClick={() => setDarkMode((current) => !current)}>
-                {darkMode ? 'Light mode' : 'Dark mode'}
-              </button>
               <button type="button" onClick={handleExport}>Export JSON</button>
               <button type="button" onClick={() => fileInputRef.current?.click()}>Import JSON</button>
             </div>
@@ -926,20 +940,24 @@ function App() {
               {languageMenuOpen && (
                 <div className="library-language-menu language-order-list" role="listbox" aria-label="Reorder languages">
                   {availableLanguages.map((language) => (
-                    <button
+                    <div
                       key={language}
-                      type="button"
                       className={`language-order-item ${language === selectedLanguage ? 'is-selected' : ''}`}
                       draggable
-                      onClick={() => handleLanguageSelect(language)}
                       onDragStart={() => setDraggedLanguage(language)}
                       onDragOver={(event) => event.preventDefault()}
                       onDrop={() => handleLanguageDrop(language)}
                       onDragEnd={() => setDraggedLanguage(null)}
                     >
-                      <span aria-hidden="true">&#8942;&#8942;</span>
-                      {language}
-                    </button>
+                      <button type="button" className="language-order-select" onClick={() => handleLanguageSelect(language)}>
+                        <span aria-hidden="true">&#8942;&#8942;</span>
+                        {language}
+                      </button>
+                      <span className="language-reorder-controls">
+                        <button type="button" onClick={() => moveLanguage(language, -1)} disabled={availableLanguages.indexOf(language) === 0} aria-label={`Move ${language} up`}>&#8593;</button>
+                        <button type="button" onClick={() => moveLanguage(language, 1)} disabled={availableLanguages.indexOf(language) === availableLanguages.length - 1} aria-label={`Move ${language} down`}>&#8595;</button>
+                      </span>
+                    </div>
                   ))}
                   <button type="button" className="language-order-item add-language-item" onClick={() => handleLanguageSelect('__add_new__')}>
                     + Add new language
@@ -949,6 +967,17 @@ function App() {
             </div>
             <div className="library-actions">
               <span>{filteredEntries.length} words</span>
+              <select
+                className="word-type-filter"
+                value={selectedWordType}
+                onChange={(event) => setSelectedWordType(event.target.value)}
+                aria-label="Filter by word type"
+              >
+                <option value="">All word types</option>
+                {wordTypeOptions.map((type) => (
+                  <option key={type} value={formatWordType(type)}>{formatWordType(type)}</option>
+                ))}
+              </select>
               <button
                 type="button"
                 className={`select-entries-button ${selectionMode ? 'is-active' : ''}`}
@@ -1090,32 +1119,20 @@ function App() {
             </div>
 
             <div className="flashcard-navigation">
-              <button type="button" className="flashcard-arrow" onClick={() => { setStudyIndex((current) => (current - 1 + studyEntries.length) % studyEntries.length); setRevealAnswer(false) }} aria-label="Previous flashcard">&#8592;</button>
+              <button type="button" className="flashcard-arrow" onClick={() => setStudyIndex((current) => (current - 1 + studyEntries.length) % studyEntries.length)} aria-label="Previous flashcard">&#8592;</button>
               <span>{studyIndex + 1}/{studyEntries.length}</span>
-              <button type="button" className="flashcard-arrow" onClick={() => { setStudyIndex((current) => (current + 1) % studyEntries.length); setRevealAnswer(false) }} aria-label="Next flashcard">&#8594;</button>
+              <button type="button" className="flashcard-arrow" onClick={() => setStudyIndex((current) => (current + 1) % studyEntries.length)} aria-label="Next flashcard">&#8594;</button>
             </div>
 
             <h3>{currentStudyCard.word}</h3>
             <p className="study-type">{currentStudyCard.wordType}</p>
 
-            {revealAnswer ? (
-              <>
-                <p className="translation">{currentStudyCard.translation}</p>
-                <dl>
-                  <div><dt>Definition</dt><dd>{currentStudyCard.definition || 'Not provided'}</dd></div>
-                  <div><dt>Pronunciation</dt><dd>{currentStudyCard.automaticPronunciation || currentStudyCard.pronunciation || 'Not provided'}</dd></div>
-                  <div><dt>Example</dt><dd>{currentStudyCard.example || 'Not provided'}</dd></div>
-                </dl>
-              </>
-            ) : (
-              <p className="study-hint">Reveal the meaning and example.</p>
-            )}
-
-            <div className="study-actions">
-              <button type="button" onClick={() => setRevealAnswer((current) => !current)}>
-                {revealAnswer ? 'Hide answer' : 'Reveal answer'}
-              </button>
-            </div>
+            <p className="translation">{currentStudyCard.translation || 'Not provided'}</p>
+            <dl>
+              <div><dt>Definition</dt><dd>{currentStudyCard.definition || 'Not provided'}</dd></div>
+              <div><dt>Pronunciation</dt><dd>{currentStudyCard.automaticPronunciation || currentStudyCard.pronunciation || 'Not provided'}</dd></div>
+              <div><dt>Example</dt><dd>{currentStudyCard.example || 'Not provided'}</dd></div>
+            </dl>
           </div>
         </div>
       )}
