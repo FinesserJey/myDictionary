@@ -160,6 +160,9 @@ function App() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [quickAddOpen, setQuickAddOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [openEntryMenuId, setOpenEntryMenuId] = useState(null)
+  const [selectionMode, setSelectionMode] = useState(false)
+  const [selectedEntryIds, setSelectedEntryIds] = useState([])
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(languages))
@@ -182,6 +185,12 @@ function App() {
   useEffect(() => {
     setRevealAnswer(false)
   }, [selectedLanguage, studyMode])
+
+  useEffect(() => {
+    setSelectedEntryIds([])
+    setSelectionMode(false)
+    setOpenEntryMenuId(null)
+  }, [selectedLanguage])
 
   useEffect(() => {
     if (!quickAddOpen) {
@@ -553,6 +562,31 @@ function App() {
     if (editingEntryId === entryId) {
       resetForm()
     }
+
+    setOpenEntryMenuId(null)
+  }
+
+  const toggleEntrySelection = (entryId) => {
+    setSelectedEntryIds((current) =>
+      current.includes(entryId) ? current.filter((id) => id !== entryId) : [...current, entryId],
+    )
+  }
+
+  const handleDeleteSelected = () => {
+    if (selectedEntryIds.length === 0) return
+
+    const confirmed = window.confirm(`Delete ${selectedEntryIds.length} selected ${selectedEntryIds.length === 1 ? 'word' : 'words'}?`)
+    if (!confirmed) return
+
+    setLanguages((current) => ({
+      ...current,
+      [selectedLanguage]: (current[selectedLanguage] || []).filter((entry) => !selectedEntryIds.includes(entry.id)),
+    }))
+    if (editingEntryId !== null && selectedEntryIds.includes(editingEntryId)) {
+      resetForm()
+    }
+    setSelectedEntryIds([])
+    setSelectionMode(false)
   }
 
   const toggleFavorite = (entryId) => {
@@ -913,7 +947,29 @@ function App() {
                 </div>
               )}
             </div>
-            <span>{filteredEntries.length} words</span>
+            <div className="library-actions">
+              <span>{filteredEntries.length} words</span>
+              <button
+                type="button"
+                className={`select-entries-button ${selectionMode ? 'is-active' : ''}`}
+                onClick={() => {
+                  setSelectionMode((current) => !current)
+                  setSelectedEntryIds([])
+                }}
+              >
+                {selectionMode ? 'Cancel' : 'Select'}
+              </button>
+              {selectionMode && (
+                <button
+                  type="button"
+                  className="bulk-delete-button"
+                  onClick={handleDeleteSelected}
+                  disabled={selectedEntryIds.length === 0}
+                >
+                  Delete Selected ({selectedEntryIds.length})
+                </button>
+              )}
+            </div>
           </div>
 
           {filteredEntries.length === 0 ? (
@@ -924,6 +980,15 @@ function App() {
             <div className="entries-list">
               {filteredEntries.map((entry) => (
                 <article key={entry.id} className="entry-card">
+                  {selectionMode && (
+                    <label className="entry-selection">
+                      <input
+                        type="checkbox"
+                        checked={selectedEntryIds.includes(entry.id)}
+                        onChange={() => toggleEntrySelection(entry.id)}
+                      />
+                    </label>
+                  )}
                   <div className="entry-header">
                     <h3>{entry.word}</h3>
                     <div className="entry-tools">
@@ -936,6 +1001,23 @@ function App() {
                         {entry.favorite ? '★' : '☆'}
                       </button>
                       <span className="pill">{entry.wordType}</span>
+                      <div className="entry-menu">
+                        <button
+                          type="button"
+                          className="entry-menu-button"
+                          aria-label={`Open options for ${entry.word}`}
+                          aria-expanded={openEntryMenuId === entry.id}
+                          onClick={() => setOpenEntryMenuId((current) => current === entry.id ? null : entry.id)}
+                        >
+                          &#8942;
+                        </button>
+                        {openEntryMenuId === entry.id && (
+                          <div className="entry-menu-list">
+                            <button type="button" onClick={() => { handleEdit(entry); setOpenEntryMenuId(null) }}>Edit</button>
+                            <button type="button" onClick={() => handleDelete(entry.id)}>Delete</button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -977,14 +1059,6 @@ function App() {
                     </div>
                   </dl>
 
-                  <div className="entry-actions">
-                    <button type="button" className="small-button edit-button" onClick={() => handleEdit(entry)}>
-                      Edit
-                    </button>
-                    <button type="button" className="small-button delete-button" onClick={() => handleDelete(entry.id)}>
-                      Delete
-                    </button>
-                  </div>
                 </article>
               ))}
             </div>
@@ -1012,7 +1086,6 @@ function App() {
         <div className="flashcard-overlay" role="dialog" aria-modal="true" aria-label="Flashcards">
           <div className="study-card">
             <div className="study-header">
-              <span className="study-badge">Flashcard</span>
               <button type="button" className="close-button" onClick={() => setStudyMode(false)} aria-label="Close flashcards">&times;</button>
             </div>
 
