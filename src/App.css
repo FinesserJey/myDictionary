@@ -587,7 +587,7 @@ button {
   border: 1px solid var(--entry-border);
   background: var(--entry-bg);
   border-radius: 16px;
-  padding: 18px;
+  padding: 14px 16px;
 }
 
 .entry-card.is-expanded {
@@ -607,22 +607,24 @@ button {
 .entry-title-group {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
   flex: 1;
+  overflow: hidden;
 }
 
 .entry-word-button {
   flex: 1;
+  min-width: 0;
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
-  min-width: 0;
   padding: 0;
   background: transparent;
   color: var(--heading-color);
   text-align: left;
-  font-size: 1.2rem;
+  font-size: 1.05rem;
+  line-height: 1.3;
   font-weight: 700;
 }
 
@@ -636,13 +638,14 @@ button {
 .entry-tools {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   padding-right: 48px;
+  flex-shrink: 0;
 }
 
 .mic-button {
-  width: 2.2rem;
-  height: 2.2rem;
+  width: 1.9rem;
+  height: 1.9rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -650,7 +653,7 @@ button {
   border-radius: 50%;
   background: var(--secondary-button-bg);
   color: var(--secondary-button-text);
-  font-size: 1rem;
+  font-size: 0.85rem;
   flex-shrink: 0;
 }
 
@@ -662,12 +665,12 @@ button {
 }
 
 .entry-menu-button {
-  width: 2.2rem;
-  height: 2.2rem;
+  width: 2rem;
+  height: 2rem;
   padding: 0;
   background: var(--secondary-button-bg);
   color: var(--secondary-button-text);
-  font-size: 1.5rem;
+  font-size: 1.3rem;
   line-height: 1;
 }
 
@@ -710,8 +713,8 @@ button {
 }
 
 .favorite-toggle {
-  width: 2.2rem;
-  height: 2.2rem;
+  width: 2rem;
+  height: 2rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -719,12 +722,30 @@ button {
   border-radius: 50%;
   background: var(--secondary-button-bg);
   color: var(--secondary-button-text);
-  font-size: 1.2rem;
+  font-size: 1.1rem;
 }
 
 .favorite-toggle.is-favorite {
   background: #f8d66d;
   color: #845d00;
+}
+
+@media (max-width: 900px) {
+  .entry-card {
+    position: relative;
+    padding-bottom: 52px;
+  }
+
+  .entry-header {
+    margin-bottom: 14px;
+  }
+
+  .favorite-toggle {
+    position: absolute;
+    right: 16px;
+    bottom: 14px;
+    z-index: 2;
+  }
 }
 
 .entry-header h3 {
@@ -737,14 +758,14 @@ button {
   background: var(--pill-bg);
   color: var(--pill-text);
   border-radius: 999px;
-  padding: 0.35rem 0.7rem;
-  font-size: 0.75rem;
+  padding: 0.28rem 0.6rem;
+  font-size: 0.7rem;
   text-transform: capitalize;
 }
 
 .translation {
-  margin: 0 0 16px;
-  font-size: 1rem;
+  margin: 0 0 12px;
+  font-size: 0.95rem;
   color: var(--muted-text);
   line-height: 1.5;
 }
@@ -1021,6 +1042,26 @@ button {
   .study-actions,
   .entry-actions {
     flex-direction: column;
+  }
+
+  .entry-card {
+    position: relative;
+    padding: 12px 12px 46px;
+  }
+
+  .entry-header {
+    margin-bottom: 8px;
+  }
+
+  .entry-tools {
+    padding-right: 0;
+  }
+
+  .favorite-toggle {
+    position: absolute;
+    right: 12px;
+    bottom: 10px;
+    z-index: 2;
   }
 
   .app-shell {
