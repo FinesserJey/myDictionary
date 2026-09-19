@@ -1091,12 +1091,12 @@ function App() {
 
           <div className="mobile-search-wrapper">
             <label className="mobile-search-field">
-              <span>Search library</span>
+              <span>Search</span>
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Search words"
+                placeholder=""
               />
             </label>
           </div>
@@ -1111,7 +1111,11 @@ function App() {
                 const isExpanded = expandedEntryId === entry.id
 
                 return (
-                  <article key={entry.id} className={`entry-card ${isExpanded ? 'is-expanded' : ''}`}>
+                  <article
+                    key={entry.id}
+                    className={`entry-card ${isExpanded ? 'is-expanded' : ''}`}
+                    onClick={() => setExpandedEntryId((current) => (current === entry.id ? null : entry.id))}
+                  >
                     {selectionMode && (
                       <label className="entry-selection">
                         <input
@@ -1122,14 +1126,17 @@ function App() {
                       </label>
                     )}
                     <div className="entry-header">
-                      <button
-                        type="button"
-                        className="entry-word-button"
-                        onClick={() => setExpandedEntryId((current) => (current === entry.id ? null : entry.id))}
-                      >
-                        <span>{entry.word}</span>
-                      </button>
-                      <div className="entry-tools">
+                      <div className="entry-title-group">
+                        <button
+                          type="button"
+                          className="entry-word-button"
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            setExpandedEntryId((current) => (current === entry.id ? null : entry.id))
+                          }}
+                        >
+                          <span>{entry.word}</span>
+                        </button>
                         <button
                           type="button"
                           className="mic-button"
@@ -1141,10 +1148,15 @@ function App() {
                         >
                           🎙️
                         </button>
+                      </div>
+                      <div className="entry-tools">
                         <button
                           type="button"
                           className={`favorite-toggle ${entry.favorite ? 'is-favorite' : ''}`}
-                          onClick={() => toggleFavorite(entry.id)}
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            toggleFavorite(entry.id)
+                          }}
                           aria-label={entry.favorite ? 'Remove favorite' : 'Add favorite'}
                         >
                           {entry.favorite ? '★' : '☆'}
@@ -1156,7 +1168,10 @@ function App() {
                             className="entry-menu-button"
                             aria-label={`Open options for ${entry.word}`}
                             aria-expanded={openEntryMenuId === entry.id}
-                            onClick={() => setOpenEntryMenuId((current) => current === entry.id ? null : entry.id)}
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              setOpenEntryMenuId((current) => current === entry.id ? null : entry.id)
+                            }}
                           >
                             &#8942;
                           </button>
@@ -1213,12 +1228,6 @@ function App() {
                       </dl>
                     )}
 
-                    {isExpanded && (
-                      <div className="entry-actions">
-                        <button type="button" className="small-button edit-button" onClick={() => handleEdit(entry)}>Edit</button>
-                        <button type="button" className="small-button delete-button" onClick={() => handleDelete(entry.id)}>Delete</button>
-                      </div>
-                    )}
                   </article>
                 )
               })}

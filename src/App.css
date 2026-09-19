@@ -604,6 +604,14 @@ button {
   margin-bottom: 10px;
 }
 
+.entry-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
 .entry-word-button {
   flex: 1;
   display: inline-flex;
@@ -643,6 +651,7 @@ button {
   background: var(--secondary-button-bg);
   color: var(--secondary-button-text);
   font-size: 1rem;
+  flex-shrink: 0;
 }
 
 .entry-menu {
