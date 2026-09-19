@@ -587,7 +587,7 @@ button {
   border: 1px solid var(--entry-border);
   background: var(--entry-bg);
   border-radius: 16px;
-  padding: 12px 14px 10px;
+  padding: 12px 14px 6px;
 }
 
 .entry-card.is-expanded {
@@ -607,7 +607,7 @@ button {
 .entry-title-group {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
   flex: 1;
   overflow: hidden;
@@ -737,7 +737,7 @@ button {
 @media (max-width: 900px) {
   .entry-card {
     position: relative;
-    padding: 12px 12px 32px;
+    padding: 12px 12px 18px;
   }
 
   .entry-header {
@@ -1063,8 +1063,8 @@ button {
 
   .favorite-toggle {
     position: absolute;
-    right: 12px;
-    bottom: 10px;
+    right: 0px;
+    bottom: 0px;
     z-index: 2;
   }
 
