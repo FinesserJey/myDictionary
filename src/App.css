@@ -587,7 +587,7 @@ button {
   border: 1px solid var(--entry-border);
   background: var(--entry-bg);
   border-radius: 16px;
-  padding: 14px 16px;
+  padding: 12px 14px 10px;
 }
 
 .entry-card.is-expanded {
@@ -611,6 +611,10 @@ button {
   min-width: 0;
   flex: 1;
   overflow: hidden;
+}
+
+.entry-header {
+  min-height: 36px;
 }
 
 .entry-word-button {
@@ -733,17 +737,17 @@ button {
 @media (max-width: 900px) {
   .entry-card {
     position: relative;
-    padding-bottom: 52px;
+    padding: 12px 12px 32px;
   }
 
   .entry-header {
-    margin-bottom: 14px;
+    margin-bottom: 8px;
   }
 
   .favorite-toggle {
     position: absolute;
-    right: 16px;
-    bottom: 14px;
+    right: 10px;
+    bottom: 8px;
     z-index: 2;
   }
 }

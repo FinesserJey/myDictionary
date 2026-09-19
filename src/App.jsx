@@ -1114,7 +1114,13 @@ function App() {
                   <article
                     key={entry.id}
                     className={`entry-card ${isExpanded ? 'is-expanded' : ''}`}
-                    onClick={() => setExpandedEntryId((current) => (current === entry.id ? null : entry.id))}
+                    onClick={(event) => {
+                      if (event.target.closest('button, input, textarea, select, audio, label')) {
+                        return
+                      }
+
+                      setExpandedEntryId((current) => (current === entry.id ? null : entry.id))
+                    }}
                   >
                     {selectionMode && (
                       <label className="entry-selection">
@@ -1142,6 +1148,7 @@ function App() {
                           className="mic-button"
                           aria-label={`Play pronunciation for ${entry.word}`}
                           onClick={(event) => {
+                            event.preventDefault()
                             event.stopPropagation()
                             speakWord(entry.pronunciation || entry.automaticPronunciation || entry.word, selectedLanguage)
                           }}
