@@ -168,6 +168,7 @@ function App() {
   const [openEntryMenuId, setOpenEntryMenuId] = useState(null)
   const [selectionMode, setSelectionMode] = useState(false)
   const [selectedEntryIds, setSelectedEntryIds] = useState([])
+  const [expandedEntryId, setExpandedEntryId] = useState(null)
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(languages))
@@ -584,6 +585,23 @@ function App() {
     }
 
     if (!normalizedEntry.word) {
+      return
+    }
+
+    const identicalWordExists = (currentEntriesForLanguage = []) =>
+      currentEntriesForLanguage.some((entry) => (
+        entry.id !== editingEntryId &&
+        typeof entry.word === 'string' &&
+        entry.word.trim().toLowerCase() === normalizedEntry.word.toLowerCase()
+      ))
+
+    const hasDuplicate = (() => {
+      const currentEntriesForLanguage = languages[selectedLanguage] || []
+      return identicalWordExists(currentEntriesForLanguage)
+    })()
+
+    if (hasDuplicate) {
+      window.alert(`"${normalizedEntry.word}" already exists in ${selectedLanguage}. Choose a different term or edit the existing entry.`)
       return
     }
 
@@ -1071,95 +1089,139 @@ function App() {
             </div>
           </div>
 
+          <div className="mobile-search-wrapper">
+            <label className="mobile-search-field">
+              <span>Search library</span>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Search words"
+              />
+            </label>
+          </div>
+
           {filteredEntries.length === 0 ? (
             <div className="empty-state">
               <p>No terms in this language library yet.</p>
             </div>
           ) : (
             <div className="entries-list">
-              {filteredEntries.map((entry) => (
-                <article key={entry.id} className="entry-card">
-                  {selectionMode && (
-                    <label className="entry-selection">
-                      <input
-                        type="checkbox"
-                        checked={selectedEntryIds.includes(entry.id)}
-                        onChange={() => toggleEntrySelection(entry.id)}
-                      />
-                    </label>
-                  )}
-                  <div className="entry-header">
-                    <h3>{entry.word}</h3>
-                    <div className="entry-tools">
+              {filteredEntries.map((entry) => {
+                const isExpanded = expandedEntryId === entry.id
+
+                return (
+                  <article key={entry.id} className={`entry-card ${isExpanded ? 'is-expanded' : ''}`}>
+                    {selectionMode && (
+                      <label className="entry-selection">
+                        <input
+                          type="checkbox"
+                          checked={selectedEntryIds.includes(entry.id)}
+                          onChange={() => toggleEntrySelection(entry.id)}
+                        />
+                      </label>
+                    )}
+                    <div className="entry-header">
                       <button
                         type="button"
-                        className={`favorite-toggle ${entry.favorite ? 'is-favorite' : ''}`}
-                        onClick={() => toggleFavorite(entry.id)}
-                        aria-label={entry.favorite ? 'Remove favorite' : 'Add favorite'}
+                        className="entry-word-button"
+                        onClick={() => setExpandedEntryId((current) => (current === entry.id ? null : entry.id))}
                       >
-                        {entry.favorite ? '★' : '☆'}
+                        <span>{entry.word}</span>
                       </button>
-                      <span className="pill">{entry.wordType}</span>
-                      <div className="entry-menu">
+                      <div className="entry-tools">
                         <button
                           type="button"
-                          className="entry-menu-button"
-                          aria-label={`Open options for ${entry.word}`}
-                          aria-expanded={openEntryMenuId === entry.id}
-                          onClick={() => setOpenEntryMenuId((current) => current === entry.id ? null : entry.id)}
+                          className="mic-button"
+                          aria-label={`Play pronunciation for ${entry.word}`}
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            speakWord(entry.pronunciation || entry.automaticPronunciation || entry.word, selectedLanguage)
+                          }}
                         >
-                          &#8942;
+                          🎙️
                         </button>
-                        {openEntryMenuId === entry.id && (
-                          <div className="entry-menu-list">
-                            <button type="button" onClick={() => { handleEdit(entry); setOpenEntryMenuId(null) }}>Edit</button>
-                            <button type="button" onClick={() => handleDelete(entry.id)}>Delete</button>
+                        <button
+                          type="button"
+                          className={`favorite-toggle ${entry.favorite ? 'is-favorite' : ''}`}
+                          onClick={() => toggleFavorite(entry.id)}
+                          aria-label={entry.favorite ? 'Remove favorite' : 'Add favorite'}
+                        >
+                          {entry.favorite ? '★' : '☆'}
+                        </button>
+                        <span className="pill">{entry.wordType}</span>
+                        <div className="entry-menu">
+                          <button
+                            type="button"
+                            className="entry-menu-button"
+                            aria-label={`Open options for ${entry.word}`}
+                            aria-expanded={openEntryMenuId === entry.id}
+                            onClick={() => setOpenEntryMenuId((current) => current === entry.id ? null : entry.id)}
+                          >
+                            &#8942;
+                          </button>
+                          {openEntryMenuId === entry.id && (
+                            <div className="entry-menu-list">
+                              <button type="button" onClick={() => { handleEdit(entry); setOpenEntryMenuId(null) }}>Edit</button>
+                              <button type="button" onClick={() => handleDelete(entry.id)}>Delete</button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <p className="translation">{entry.translation || 'No translation yet'}</p>
+
+                    {isExpanded && (
+                      <dl>
+                        {entry.definition && (
+                          <div>
+                            <dt>Definition</dt>
+                            <dd>{entry.definition}</dd>
                           </div>
                         )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <p className="translation">{entry.translation}</p>
-
-                  <dl>
-                    <div>
-                      <dt>Definition</dt>
-                      <dd>{entry.definition}</dd>
-                    </div>
-                    <div>
-                      <dt>Pronunciation</dt>
-                      <dd>
-                        {entry.automaticPronunciation && <span>{entry.automaticPronunciation} </span>}
-                        {entry.pronunciation && <span>({entry.pronunciation})</span>}
-                        {!entry.automaticPronunciation && !entry.pronunciation && 'Not provided'}
-                        {entry.voiceRecording && (
-                          <audio controls src={entry.voiceRecording} aria-label={`Recorded pronunciation for ${entry.word}`} />
+                        {(entry.pronunciation || entry.automaticPronunciation || entry.voiceRecording) && (
+                          <div>
+                            <dt>Pronunciation</dt>
+                            <dd>
+                              {entry.automaticPronunciation && <span>{entry.automaticPronunciation} </span>}
+                              {entry.pronunciation && <span>({entry.pronunciation})</span>}
+                              {entry.voiceRecording && (
+                                <audio controls src={entry.voiceRecording} aria-label={`Your recorded pronunciation for ${entry.word}`} />
+                              )}
+                            </dd>
+                          </div>
                         )}
-                        <button
-                          type="button"
-                          className="speak-button"
-                          onClick={() => speakWord(entry.word, selectedLanguage)}
-                          aria-label={`Play pronunciation for ${entry.word}`}
-                        >
-                          Play
-                        </button>
-                      </dd>
-                    </div>
-                    {entry.romanization && (
-                      <div>
-                        <dt>Romanization</dt>
-                        <dd>{entry.romanization}</dd>
+                        {entry.romanization && (
+                          <div>
+                            <dt>Romanization</dt>
+                            <dd>{entry.romanization}</dd>
+                          </div>
+                        )}
+                        {entry.wordType && (
+                          <div>
+                            <dt>Word type</dt>
+                            <dd>{entry.wordType}</dd>
+                          </div>
+                        )}
+                        {entry.example && (
+                          <div>
+                            <dt>Example</dt>
+                            <dd>{entry.example}</dd>
+                          </div>
+                        )}
+                      </dl>
+                    )}
+
+                    {isExpanded && (
+                      <div className="entry-actions">
+                        <button type="button" className="small-button edit-button" onClick={() => handleEdit(entry)}>Edit</button>
+                        <button type="button" className="small-button delete-button" onClick={() => handleDelete(entry.id)}>Delete</button>
                       </div>
                     )}
-                    <div>
-                      <dt>Example</dt>
-                      <dd>{entry.example}</dd>
-                    </div>
-                  </dl>
-
-                </article>
-              ))}
+                  </article>
+                )
+              })}
             </div>
           )}
         </section>

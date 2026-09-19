@@ -590,6 +590,11 @@ button {
   padding: 18px;
 }
 
+.entry-card.is-expanded {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
 .entry-header {
   position: relative;
   display: flex;
@@ -599,11 +604,45 @@ button {
   margin-bottom: 10px;
 }
 
+.entry-word-button {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-width: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--heading-color);
+  text-align: left;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.entry-word-button span {
+  display: inline-block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .entry-tools {
   display: flex;
   align-items: center;
   gap: 8px;
   padding-right: 48px;
+}
+
+.mic-button {
+  width: 2.2rem;
+  height: 2.2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--secondary-button-bg);
+  color: var(--secondary-button-text);
+  font-size: 1rem;
 }
 
 .entry-menu {
@@ -698,6 +737,31 @@ button {
   margin: 0 0 16px;
   font-size: 1rem;
   color: var(--muted-text);
+  line-height: 1.5;
+}
+
+.mobile-search-wrapper {
+  display: none;
+  margin-bottom: 16px;
+}
+
+.mobile-search-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--label-color);
+}
+
+.mobile-search-field input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--input-border);
+  border-radius: 12px;
+  background: var(--input-bg);
+  color: var(--input-text);
+  padding: 0.82rem 0.95rem;
+  font: inherit;
 }
 
 .entry-card dl {
@@ -932,6 +996,10 @@ button {
   .language-field,
   .quick-actions {
     display: none;
+  }
+
+  .mobile-search-wrapper {
+    display: block;
   }
 
   .quick-actions button {
