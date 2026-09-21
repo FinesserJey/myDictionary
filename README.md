@@ -21,7 +21,7 @@ The app is local-first: dictionary entries, favorites, custom languages, custom 
 - English autocomplete suggestions are provided by Datamuse while entering a new English term.
 - English definitions, part of speech, and automatic phonetic pronunciation are looked up from Free Dictionary API when the term field loses focus.
 - Korean terms receive a generated romanization using the app's built-in Hangul romanization logic.
-- The Translate action sends a request to the local or deployed backend proxy. Langbly is used when `LANGBLY_API_KEY` is configured, with LibreTranslate available as a fallback.
+- The Translate action sends a request to the local or deployed backend proxy. Langbly is used when `LANGBLY_API_KEY` is configured, with LibreTranslate available as a fallback. Translation direction can be selected and swapped between supported languages.
 - Browser speech synthesis can read a term aloud.
 
 ### Personal pronunciation recordings
@@ -29,14 +29,18 @@ The app is local-first: dictionary entries, favorites, custom languages, custom 
 - The **Your Pronunciation** field supports optional typed pronunciation notes.
 - **Record voice** requests microphone access and records through the browser's `MediaRecorder` API.
 - A recording can be played back before the entry is saved and from the saved entry afterward.
-- Recordings are stored as data URLs in browser `localStorage`, so they are device/browser-specific and count toward browser storage limits. They are included in JSON exports, but large recordings can make exports sizable.
+- Recordings are stored in browser IndexedDB, so they remain device/browser-specific without consuming the main dictionary `localStorage` value. Legacy data-URL recordings remain readable.
 
 ### Study and data management
 
 - Flashcard mode shows saved terms and can reveal definitions and examples.
 - Study mode can be limited to favorite entries.
-- Export the current dictionary to a JSON file.
-- Import a previously exported JSON dictionary.
+- Typing and listening quiz modes are available alongside standard flashcards.
+- Entries support comma-separated tags, tag-filtered libraries, and filtered study sessions.
+- Entries can link to related entries in another language library.
+- Export the full dictionary or selected entries to JSON or CSV.
+- Import a previously exported JSON or CSV dictionary.
+- Delete language libraries after an explicit confirmation prompt; deleting a library removes all entries in it.
 - Imported entries are validated and normalized before being added to the app.
 
 ### Progressive Web App
@@ -155,3 +159,14 @@ public/
 render.yaml             Render web-service configuration
 vite.config.js          Vite development proxy configuration
 ```
+
+## To-do roadmap
+
+- Add spaced-repetition scheduling with due dates, difficulty ratings, and review intervals.
+- Add daily review goals, study streaks, and progress statistics.
+- Add entry history and undo for edits, deletions, and bulk actions.
+- Add custom example-sentence lookup or generation.
+- Add keyboard shortcuts for search, adding entries, flipping cards, and quiz answers.
+- Add schema versioning and migrations for future data-model changes.
+- Add an offline queue for lookups and translations when the PWA is disconnected.
+- Expand accessibility coverage with stronger keyboard navigation, announcements, and reduced-motion support.

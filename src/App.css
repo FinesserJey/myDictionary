@@ -506,6 +506,22 @@ button {
   gap: 8px;
 }
 
+.translation-direction-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.translation-direction-row select {
+  min-width: 0;
+  flex: 1;
+  border: 1px solid var(--input-border);
+  border-radius: 12px;
+  background: var(--input-bg);
+  color: var(--input-text);
+  padding: 0.7rem 0.75rem;
+}
+
 .translation-input-row input {
   min-width: 0;
   flex: 1;
@@ -541,6 +557,10 @@ button {
 .inline-action-button:disabled {
   cursor: not-allowed;
   opacity: 0.5;
+}
+
+.delete-language-item {
+  color: var(--delete-button-text) !important;
 }
 
 .speak-button {
@@ -894,6 +914,39 @@ button {
   color: var(--secondary-button-text);
   border: 1px solid var(--secondary-button-border);
   padding: 0.75rem 1rem;
+}
+
+.study-filters {
+  display: flex;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.study-filters select,
+.typing-quiz input {
+  min-width: 0;
+  flex: 1;
+  border: 1px solid var(--input-border);
+  border-radius: 10px;
+  background: var(--input-bg);
+  color: var(--input-text);
+  padding: 0.65rem 0.75rem;
+}
+
+.typing-quiz {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.typing-quiz .secondary-button {
+  justify-self: start;
+}
+
+.study-feedback {
+  margin: 0;
+  color: var(--chip-text);
+  font-weight: 700;
 }
 
 .flashcard-overlay {

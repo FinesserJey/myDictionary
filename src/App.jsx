@@ -3,6 +3,8 @@ import './App.css'
 
 const STORAGE_KEY = 'language-lens-dictionary'
 const THEME_KEY = 'language-lens-theme'
+const RECORDING_DB_NAME = 'language-lens-recordings'
+const RECORDING_STORE_NAME = 'recordings'
 
 const initialDictionary = {
   English: [],
@@ -96,6 +98,58 @@ const emptyForm = {
   wordType: '',
   example: '',
   favorite: false,
+  tags: '',
+  linkedLanguage: '',
+  linkedEntryId: '',
+}
+
+const openRecordingDatabase = () => new Promise((resolve, reject) => {
+  const request = indexedDB.open(RECORDING_DB_NAME, 1)
+  request.onupgradeneeded = () => request.result.createObjectStore(RECORDING_STORE_NAME)
+  request.onsuccess = () => resolve(request.result)
+  request.onerror = () => reject(request.error)
+})
+
+const saveRecording = async (recordingId, blob) => {
+  const database = await openRecordingDatabase()
+  await new Promise((resolve, reject) => {
+    const transaction = database.transaction(RECORDING_STORE_NAME, 'readwrite')
+    transaction.objectStore(RECORDING_STORE_NAME).put(blob, recordingId)
+    transaction.oncomplete = resolve
+    transaction.onerror = () => reject(transaction.error)
+  })
+  database.close()
+}
+
+const getRecording = async (recordingId) => {
+  const database = await openRecordingDatabase()
+  const blob = await new Promise((resolve, reject) => {
+    const transaction = database.transaction(RECORDING_STORE_NAME, 'readonly')
+    const request = transaction.objectStore(RECORDING_STORE_NAME).get(recordingId)
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
+  database.close()
+  return blob
+}
+
+const deleteRecording = async (recordingId) => {
+  if (!recordingId) return
+  const database = await openRecordingDatabase()
+  await new Promise((resolve, reject) => {
+    const transaction = database.transaction(RECORDING_STORE_NAME, 'readwrite')
+    transaction.objectStore(RECORDING_STORE_NAME).delete(recordingId)
+    transaction.oncomplete = resolve
+    transaction.onerror = () => reject(transaction.error)
+  })
+  database.close()
+}
+
+const recordingToBlob = async (value) => {
+  if (!value) return null
+  if (value instanceof Blob) return value
+  const response = await fetch(value)
+  return response.blob()
 }
 
 const getStoredDictionary = () => {
@@ -122,6 +176,7 @@ const getStoredDictionary = () => {
 
 function App() {
   const fileInputRef = useRef(null)
+  const csvInputRef = useRef(null)
   const libraryMenuRef = useRef(null)
   const settingsRef = useRef(null)
   const touchStartYRef = useRef(null)
@@ -130,6 +185,8 @@ function App() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedWordType, setSelectedWordType] = useState('')
   const [formData, setFormData] = useState(emptyForm)
+  const [translationSource, setTranslationSource] = useState('English')
+  const [translationTarget, setTranslationTarget] = useState('Spanish')
   const [customWordTypes, setCustomWordTypes] = useState([])
   const [suggestions, setSuggestions] = useState([])
   const [isLookingUpWord, setIsLookingUpWord] = useState(false)
@@ -169,6 +226,12 @@ function App() {
   const [selectionMode, setSelectionMode] = useState(false)
   const [selectedEntryIds, setSelectedEntryIds] = useState([])
   const [expandedEntryId, setExpandedEntryId] = useState(null)
+  const [recordingUrls, setRecordingUrls] = useState({})
+  const [selectedTag, setSelectedTag] = useState('')
+  const [studyModeType, setStudyModeType] = useState('flashcard')
+  const [studyTag, setStudyTag] = useState('')
+  const [studyAnswer, setStudyAnswer] = useState('')
+  const [studyFeedback, setStudyFeedback] = useState('')
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(languages))
@@ -245,6 +308,33 @@ function App() {
 
   const currentEntries = languages[selectedLanguage] || []
   const wordTypeOptions = [...defaultWordTypes, ...customWordTypes]
+  const allTags = useMemo(
+    () => [...new Set(Object.values(languages).flat().flatMap((entry) => Array.isArray(entry.tags) ? entry.tags : []))].sort(),
+    [languages],
+  )
+
+  useEffect(() => {
+    let cancelled = false
+    const loadRecordings = async () => {
+      const loaded = {}
+      await Promise.all(currentEntries.map(async (entry) => {
+        if (!entry.voiceRecordingId) return
+        try {
+          const blob = await getRecording(entry.voiceRecordingId)
+          if (blob) loaded[entry.voiceRecordingId] = URL.createObjectURL(blob)
+        } catch (error) {
+          console.warn('Unable to load saved recording', error)
+        }
+      }))
+      if (!cancelled) setRecordingUrls(loaded)
+      else Object.values(loaded).forEach((url) => URL.revokeObjectURL(url))
+    }
+    loadRecordings()
+    return () => {
+      cancelled = true
+      Object.values(recordingUrls).forEach((url) => URL.revokeObjectURL(url))
+    }
+  }, [currentEntries])
 
   const favoriteEntries = useMemo(
     () => currentEntries.filter((entry) => entry.favorite),
@@ -260,20 +350,26 @@ function App() {
     const query = searchTerm.trim().toLowerCase()
     const entries = activeTab === 'favorites' ? currentEntries.filter((entry) => entry.favorite) : currentEntries
     const groupedEntries = selectedWordType ? entries.filter((entry) => entry.wordType === selectedWordType) : entries
+    const taggedEntries = selectedTag ? groupedEntries.filter((entry) => entry.tags?.includes(selectedTag)) : groupedEntries
 
     if (!query) {
-      return groupedEntries
+      return taggedEntries
     }
 
-    return groupedEntries.filter((entry) =>
+    return taggedEntries.filter((entry) =>
       [entry.word, entry.translation, entry.definition, entry.pronunciation, entry.automaticPronunciation, entry.romanization, entry.example]
         .join(' ')
         .toLowerCase()
         .includes(query),
     )
-  }, [activeTab, currentEntries, searchTerm, selectedWordType])
+  }, [activeTab, currentEntries, searchTerm, selectedTag, selectedWordType])
 
-  const currentStudyCard = studyEntries[studyIndex % Math.max(studyEntries.length, 1)] || null
+  const filteredStudyEntries = useMemo(() => {
+    if (!studyTag) return studyEntries
+    return studyEntries.filter((entry) => entry.tags?.includes(studyTag))
+  }, [studyEntries, studyTag])
+
+  const currentStudyCard = filteredStudyEntries[studyIndex % Math.max(filteredStudyEntries.length, 1)] || null
 
   const resetForm = () => {
     recordingStreamRef.current?.getTracks().forEach((track) => track.stop())
@@ -319,15 +415,16 @@ function App() {
 
   const translateWord = async () => {
     const word = formData.word.trim()
-    const targetLanguage = languageCodes[selectedLanguage]
-    if (!word || !targetLanguage || targetLanguage === 'en') return
+    const sourceLanguage = languageCodes[translationSource]
+    const targetLanguage = languageCodes[translationTarget]
+    if (!word || !sourceLanguage || !targetLanguage || sourceLanguage === targetLanguage) return
 
     setIsTranslating(true)
     try {
       const response = await fetch('/api/translate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ q: word, source: targetLanguage, target: 'en', format: 'text' }),
+        body: JSON.stringify({ q: word, source: sourceLanguage, target: targetLanguage, format: 'text' }),
       })
 
       if (!response.ok) {
@@ -448,11 +545,19 @@ function App() {
       }
 
       setSelectedLanguage(normalizedName)
+      if (languageCodes[normalizedName]) {
+        setTranslationSource(normalizedName)
+        setTranslationTarget(normalizedName === 'English' ? 'Spanish' : 'English')
+      }
       setLanguageMenuOpen(false)
       return
     }
 
     setSelectedLanguage(nextValue)
+    if (languageCodes[nextValue]) {
+      setTranslationSource(nextValue)
+      setTranslationTarget(nextValue === 'English' ? 'Spanish' : 'English')
+    }
     setLanguageMenuOpen(false)
   }
 
@@ -567,8 +672,23 @@ function App() {
     }))
   }
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
+
+    const previousEntry = editingEntryId === null
+      ? null
+      : (languages[selectedLanguage] || []).find((entry) => entry.id === editingEntryId)
+    const voiceRecordingId = formData.voiceRecording
+      ? (previousEntry?.voiceRecordingId || `recording-${Date.now()}-${Math.random().toString(36).slice(2)}`)
+      : previousEntry?.voiceRecordingId || ''
+    if (formData.voiceRecording) {
+      try {
+        const recordingBlob = await recordingToBlob(formData.voiceRecording)
+        await saveRecording(voiceRecordingId, recordingBlob)
+      } catch (error) {
+        console.warn('Unable to save recording in IndexedDB', error)
+      }
+    }
 
     const normalizedEntry = {
       ...formData,
@@ -576,12 +696,17 @@ function App() {
       translation: formData.translation.trim(),
       definition: formData.definition.trim(),
       pronunciation: formData.pronunciation.trim(),
-      voiceRecording: formData.voiceRecording,
+      voiceRecording: previousEntry?.voiceRecording && !formData.voiceRecording ? previousEntry.voiceRecording : '',
+      voiceRecordingId,
       automaticPronunciation: formData.automaticPronunciation.trim(),
       romanization: formData.romanization.trim(),
       example: formData.example.trim(),
       wordType: formData.wordType,
       favorite: Boolean(formData.favorite),
+      tags: formData.tags.split(',').map((tag) => tag.trim()).filter(Boolean),
+      linkedEntries: formData.linkedLanguage && formData.linkedEntryId
+        ? [{ language: formData.linkedLanguage, entryId: Number(formData.linkedEntryId) }]
+        : previousEntry?.linkedEntries || [],
     }
 
     if (!normalizedEntry.word) {
@@ -639,10 +764,15 @@ function App() {
       wordType: entry.wordType,
       example: entry.example,
       favorite: Boolean(entry.favorite),
+      tags: (entry.tags || []).join(', '),
+      linkedLanguage: entry.linkedEntries?.[0]?.language || '',
+      linkedEntryId: entry.linkedEntries?.[0]?.entryId?.toString() || '',
     })
   }
 
   const handleDelete = (entryId) => {
+    const deletedEntry = currentEntries.find((entry) => entry.id === entryId)
+    if (deletedEntry?.voiceRecordingId) deleteRecording(deletedEntry.voiceRecordingId).catch(() => {})
     setLanguages((current) => ({
       ...current,
       [selectedLanguage]: (current[selectedLanguage] || []).filter((entry) => entry.id !== entryId),
@@ -687,16 +817,109 @@ function App() {
     }))
   }
 
+  const handleDeleteLibrary = (language) => {
+    const entryCount = (languages[language] || []).length
+    const confirmed = window.confirm(`Delete the ${language} library and all ${entryCount} saved ${entryCount === 1 ? 'entry' : 'entries'}? This cannot be undone.`)
+    if (!confirmed) return
+
+    const remainingLanguages = Object.fromEntries(Object.entries(languages).filter(([name]) => name !== language))
+    if (Object.keys(remainingLanguages).length === 0) {
+      window.alert('Keep at least one language library.')
+      return
+    }
+    setLanguages(remainingLanguages)
+    setSelectedLanguage(Object.keys(remainingLanguages)[0])
+    setLanguageMenuOpen(false)
+  }
+
   const handleExport = () => {
-    const blob = new Blob([JSON.stringify(languages, null, 2)], {
+    const exportData = selectedEntryIds.length > 0
+      ? { [selectedLanguage]: currentEntries.filter((entry) => selectedEntryIds.includes(entry.id)) }
+      : languages
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], {
       type: 'application/json',
     })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = 'dictionary-export.json'
+    link.download = selectedEntryIds.length > 0 ? 'dictionary-selection.json' : 'dictionary-export.json'
     link.click()
     URL.revokeObjectURL(url)
+  }
+
+  const csvEscape = (value) => `"${String(value ?? '').replaceAll('"', '""')}"`
+
+  const downloadFile = (content, filename, type) => {
+    const blob = new Blob([content], { type })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleExportCSV = () => {
+    const entries = selectedEntryIds.length > 0
+      ? currentEntries.filter((entry) => selectedEntryIds.includes(entry.id))
+      : currentEntries
+    const headers = ['language', 'word', 'translation', 'definition', 'pronunciation', 'automaticPronunciation', 'romanization', 'wordType', 'example', 'favorite', 'tags']
+    const rows = entries.map((entry) => [selectedLanguage, entry.word, entry.translation, entry.definition, entry.pronunciation, entry.automaticPronunciation, entry.romanization, entry.wordType, entry.example, entry.favorite, (entry.tags || []).join('|')])
+    downloadFile([headers, ...rows].map((row) => row.map(csvEscape).join(',')).join('\n'), 'dictionary-export.csv', 'text/csv')
+  }
+
+  const parseCsvRow = (row) => {
+    const values = []
+    let value = ''
+    let quoted = false
+    for (let index = 0; index < row.length; index += 1) {
+      const character = row[index]
+      if (character === '"' && row[index + 1] === '"') {
+        value += '"'
+        index += 1
+      } else if (character === '"') {
+        quoted = !quoted
+      } else if (character === ',' && !quoted) {
+        values.push(value)
+        value = ''
+      } else {
+        value += character
+      }
+    }
+    values.push(value)
+    return values
+  }
+
+  const handleImportCSV = async (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    try {
+      const rows = file.text ? (await file.text()).split(/\r?\n/).filter(Boolean).map(parseCsvRow) : []
+      const headers = rows.shift()?.map((header) => header.replace(/^"|"$/g, '')) || []
+      const imported = rows.map((row) => Object.fromEntries(headers.map((header, index) => [header, row[index] || ''])))
+      const nextEntries = imported.filter((entry) => entry.word?.trim()).map((entry) => ({
+        id: Date.now() + Math.random(),
+        word: entry.word.trim(),
+        translation: entry.translation || '',
+        definition: entry.definition || '',
+        pronunciation: entry.pronunciation || '',
+        automaticPronunciation: entry.automaticPronunciation || '',
+        romanization: entry.romanization || '',
+        wordType: entry.wordType || '',
+        example: entry.example || '',
+        favorite: entry.favorite === 'true',
+        tags: (entry.tags || '').split('|').map((tag) => tag.trim()).filter(Boolean),
+      }))
+      if (nextEntries.length === 0) throw new Error('No valid entries found.')
+      const language = imported[0]?.language?.trim() || selectedLanguage
+      setLanguages((current) => ({ ...current, [language]: [...nextEntries, ...(current[language] || [])] }))
+      setSelectedLanguage(language)
+    } catch (error) {
+      console.error('CSV import failed', error)
+      window.alert('Unable to import that CSV file.')
+    } finally {
+      event.target.value = ''
+    }
   }
 
   const handleImport = async (event) => {
@@ -729,10 +952,13 @@ function App() {
                     definition: typeof entry.definition === 'string' ? entry.definition : '',
                     pronunciation: typeof entry.pronunciation === 'string' ? entry.pronunciation : '',
                     voiceRecording: typeof entry.voiceRecording === 'string' ? entry.voiceRecording : '',
+                    voiceRecordingId: typeof entry.voiceRecordingId === 'string' ? entry.voiceRecordingId : '',
                     automaticPronunciation: typeof entry.automaticPronunciation === 'string' ? entry.automaticPronunciation : '',
                     romanization: typeof entry.romanization === 'string' ? entry.romanization : '',
                     example: typeof entry.example === 'string' ? entry.example : '',
                     favorite: Boolean(entry.favorite),
+                    tags: Array.isArray(entry.tags) ? entry.tags.filter((tag) => typeof tag === 'string') : [],
+                    linkedEntries: Array.isArray(entry.linkedEntries) ? entry.linkedEntries : [],
                   }))
               : [],
           ]),
@@ -827,12 +1053,15 @@ function App() {
             <div className="settings-menu">
               <button type="button" onClick={handleExport}>Export JSON</button>
               <button type="button" onClick={() => fileInputRef.current?.click()}>Import JSON</button>
+              <button type="button" onClick={handleExportCSV}>Export CSV</button>
+              <button type="button" onClick={() => csvInputRef.current?.click()}>Import CSV</button>
             </div>
           )}
         </div>
       </header>
 
       <input ref={fileInputRef} type="file" accept="application/json" hidden onChange={handleImport} />
+      <input ref={csvInputRef} type="file" accept="text/csv,.csv" hidden onChange={handleImportCSV} />
 
       <div className={`pull-indicator ${isRefreshing ? 'refreshing' : ''}`} style={{ height: `${Math.max(pullDistance, 0)}px` }}>
         <span>{isRefreshing ? 'Refreshing...' : pullDistance > 70 ? 'Release to refresh' : 'Pull to refresh'}</span>
@@ -878,6 +1107,19 @@ function App() {
               </label>
 
               <label>
+                <span>Translation direction</span>
+                <div className="translation-direction-row">
+                  <select value={translationSource} onChange={(event) => setTranslationSource(event.target.value)}>
+                    {commonLanguages.filter((language) => languageCodes[language]).map((language) => <option key={language}>{language}</option>)}
+                  </select>
+                  <button type="button" className="inline-action-button" onClick={() => { setTranslationSource(translationTarget); setTranslationTarget(translationSource) }} aria-label="Swap translation direction">&#8646;</button>
+                  <select value={translationTarget} onChange={(event) => setTranslationTarget(event.target.value)}>
+                    {commonLanguages.filter((language) => languageCodes[language]).map((language) => <option key={language}>{language}</option>)}
+                  </select>
+                </div>
+              </label>
+
+              <label>
                 <span>Translation</span>
                 <div className="translation-input-row">
                   <input
@@ -891,7 +1133,7 @@ function App() {
                     type="button"
                     className="inline-action-button"
                     onClick={translateWord}
-                    disabled={isTranslating || !languageCodes[selectedLanguage] || selectedLanguage === 'English'}
+                    disabled={isTranslating || !languageCodes[translationSource] || !languageCodes[translationTarget] || translationSource === translationTarget}
                   >
                     {isTranslating ? '...' : 'Translate'}
                   </button>
@@ -977,6 +1219,25 @@ function App() {
                 />
               </label>
 
+              <label>
+                <span>Tags</span>
+                <input type="text" name="tags" value={formData.tags} onChange={handleFormChange} placeholder="travel, beginner" />
+              </label>
+
+              <label>
+                <span>Link to another language</span>
+                <div className="translation-direction-row">
+                  <select name="linkedLanguage" value={formData.linkedLanguage} onChange={handleFormChange}>
+                    <option value="">No linked entry</option>
+                    {availableLanguages.filter((language) => language !== selectedLanguage).map((language) => <option key={language}>{language}</option>)}
+                  </select>
+                  <select name="linkedEntryId" value={formData.linkedEntryId} onChange={handleFormChange} disabled={!formData.linkedLanguage}>
+                    <option value="">Choose a word</option>
+                    {(languages[formData.linkedLanguage] || []).map((entry) => <option key={entry.id} value={entry.id}>{entry.word}</option>)}
+                  </select>
+                </div>
+              </label>
+
               <label className="checkbox-row">
                 <input
                   type="checkbox"
@@ -1050,6 +1311,9 @@ function App() {
                   <button type="button" className="language-order-item add-language-item" onClick={() => handleLanguageSelect('__add_new__')}>
                     + Add new language
                   </button>
+                  <button type="button" className="language-order-item delete-language-item" onClick={() => handleDeleteLibrary(selectedLanguage)}>
+                    Delete {selectedLanguage} library
+                  </button>
                 </div>
               )}
             </div>
@@ -1065,6 +1329,10 @@ function App() {
                 {wordTypeOptions.map((type) => (
                   <option key={type} value={formatWordType(type)}>{formatWordType(type)}</option>
                 ))}
+              </select>
+              <select className="word-type-filter" value={selectedTag} onChange={(event) => setSelectedTag(event.target.value)} aria-label="Filter by tag">
+                <option value="">All tags</option>
+                {allTags.map((tag) => <option key={tag}>{tag}</option>)}
               </select>
               <button
                 type="button"
@@ -1086,6 +1354,9 @@ function App() {
                   Delete Selected ({selectedEntryIds.length})
                 </button>
               )}
+              <button type="button" className="select-entries-button" onClick={handleExportCSV}>
+                Export CSV{selectedEntryIds.length > 0 ? ' selected' : ''}
+              </button>
             </div>
           </div>
 
@@ -1208,8 +1479,8 @@ function App() {
                             <dd>
                               {entry.automaticPronunciation && <span>{entry.automaticPronunciation} </span>}
                               {entry.pronunciation && <span>({entry.pronunciation})</span>}
-                              {entry.voiceRecording && (
-                                <audio controls src={entry.voiceRecording} aria-label={`Your recorded pronunciation for ${entry.word}`} />
+                              {(entry.voiceRecording || recordingUrls[entry.voiceRecordingId]) && (
+                                <audio controls src={entry.voiceRecording || recordingUrls[entry.voiceRecordingId]} aria-label={`Your recorded pronunciation for ${entry.word}`} />
                               )}
                             </dd>
                           </div>
@@ -1231,6 +1502,12 @@ function App() {
                             <dt>Example</dt>
                             <dd>{entry.example}</dd>
                           </div>
+                        )}
+                        {entry.tags?.length > 0 && (
+                          <div><dt>Tags</dt><dd>{entry.tags.join(', ')}</dd></div>
+                        )}
+                        {entry.linkedEntries?.length > 0 && (
+                          <div><dt>Linked entries</dt><dd>{entry.linkedEntries.map((link) => `${link.language}: ${(languages[link.language] || []).find((linkedEntry) => linkedEntry.id === link.entryId)?.word || 'Missing entry'}`).join(', ')}</dd></div>
                         )}
                       </dl>
                     )}
@@ -1267,15 +1544,40 @@ function App() {
             </div>
 
             <div className="flashcard-navigation">
-              <button type="button" className="flashcard-arrow" onClick={() => { setStudyIndex((current) => (current - 1 + studyEntries.length) % studyEntries.length); setIsFlashcardFlipped(false) }} aria-label="Previous flashcard">&#8592;</button>
-              <span>{studyIndex + 1}/{studyEntries.length}</span>
-              <button type="button" className="flashcard-arrow" onClick={() => { setStudyIndex((current) => (current + 1) % studyEntries.length); setIsFlashcardFlipped(false) }} aria-label="Next flashcard">&#8594;</button>
+              <button type="button" className="flashcard-arrow" onClick={() => { setStudyIndex((current) => (current - 1 + filteredStudyEntries.length) % filteredStudyEntries.length); setIsFlashcardFlipped(false); setStudyFeedback('') }} aria-label="Previous flashcard">&#8592;</button>
+              <span>{studyIndex + 1}/{filteredStudyEntries.length}</span>
+              <button type="button" className="flashcard-arrow" onClick={() => { setStudyIndex((current) => (current + 1) % filteredStudyEntries.length); setIsFlashcardFlipped(false); setStudyFeedback('') }} aria-label="Next flashcard">&#8594;</button>
+            </div>
+
+            <div className="study-filters">
+              <select value={studyModeType} onChange={(event) => { setStudyModeType(event.target.value); setStudyAnswer(''); setStudyFeedback('') }} aria-label="Study mode">
+                <option value="flashcard">Flashcards</option>
+                <option value="typing">Typing quiz</option>
+                <option value="listening">Listening quiz</option>
+              </select>
+              <select value={studyTag} onChange={(event) => { setStudyTag(event.target.value); setStudyIndex(0) }} aria-label="Study tag filter">
+                <option value="">All tags</option>
+                {allTags.map((tag) => <option key={tag}>{tag}</option>)}
+              </select>
             </div>
 
             <h3>{currentStudyCard.word}</h3>
             <p className="study-type">{currentStudyCard.wordType}</p>
 
-            {isFlashcardFlipped && (
+            {studyModeType === 'listening' && (
+              <button type="button" className="secondary-button" onClick={() => speakWord(currentStudyCard.word, selectedLanguage)}>Play word</button>
+            )}
+
+            {studyModeType === 'typing' && (
+              <div className="typing-quiz">
+                <p className="study-hint">Type the translation: {currentStudyCard.word}</p>
+                <input value={studyAnswer} onChange={(event) => { setStudyAnswer(event.target.value); setStudyFeedback('') }} aria-label="Quiz answer" />
+                <button type="button" className="secondary-button" onClick={() => setStudyFeedback(studyAnswer.trim().toLowerCase() === currentStudyCard.translation.trim().toLowerCase() ? 'Correct' : `Answer: ${currentStudyCard.translation || 'Not provided'}`)}>Check answer</button>
+                {studyFeedback && <p className="study-feedback">{studyFeedback}</p>}
+              </div>
+            )}
+
+            {(isFlashcardFlipped || studyModeType === 'listening') && (
               <div className="flashcard-answer">
                 <p className="translation">{currentStudyCard.translation || 'Not provided'}</p>
                 <dl>
